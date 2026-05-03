@@ -43,6 +43,11 @@ jobs:
   esp-cross:
     name: ESP32-C3 cross-compile
     runs-on: ubuntu-latest
+    # RUSTFLAGS env var overrides .cargo/config.toml rustflags, so both must carry
+    # --cfg portable_atomic_unsafe_assume_single_core (riscv32imc has no hardware
+    # atomic CAS; this tells portable-atomic to use critical-section emulation instead).
+    env:
+      RUSTFLAGS: -D warnings --cfg portable_atomic_unsafe_assume_single_core
     steps:
       - uses: actions/checkout@v4
       # esp-hal 0.23 requires nightly for some unstable features

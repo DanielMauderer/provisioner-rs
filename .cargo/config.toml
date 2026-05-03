@@ -1,0 +1,4 @@
+[target.riscv32imc-unknown-none-elf]
+# riscv32imc has no hardware atomic CAS; tell portable-atomic it is safe to
+# emulate CAS with critical sections (esp32c3 is single-core).
+rustflags = ["--cfg", "portable_atomic_unsafe_assume_single_core"]
