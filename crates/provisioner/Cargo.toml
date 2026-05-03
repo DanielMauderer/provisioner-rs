@@ -6,6 +6,7 @@ edition = "2024"
 [features]
 esp32c3 = [
     "dep:esp-hal",
+    "esp-hal/esp32c3",
     "dep:esp-wifi",
     "dep:embassy-net",
     "dep:embassy-executor",
