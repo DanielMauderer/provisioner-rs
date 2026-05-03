@@ -22,7 +22,7 @@ heapless = "0.9"
 
 esp-hal             = { version = "0.23", optional = true }
 esp-wifi            = { version = "0.13", optional = true }
-embassy-net         = { version = "0.6",  optional = true }
+embassy-net         = { version = "0.6",  optional = true, features = ["proto-ipv4", "tcp", "dhcpv4", "medium-ethernet"] }
 embassy-executor    = { version = "0.7",  optional = true }
 sequential-storage  = { version = "0.9",  optional = true }
 esp-storage         = { version = "0.3",  optional = true }
