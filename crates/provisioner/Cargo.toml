@@ -7,8 +7,8 @@ edition = "2024"
 esp32c3 = [
     "dep:esp-hal",
     "esp-hal/esp32c3",
-    "dep:esp-wifi",
-    "esp-wifi/esp32c3",
+    "dep:esp-radio",
+    "esp-radio/esp32c3",
     "dep:embassy-net",
     "dep:embassy-executor",
     "dep:sequential-storage",
@@ -21,7 +21,7 @@ provisioner-macro = { path = "../provisioner-macro" }
 heapless = "0.9"
 
 esp-hal             = { version = "1.1", optional = true, features = ["unstable"] }
-esp-wifi            = { version = "0.15", optional = true, features = ["wifi"] }
+esp-radio           = { version = "0.18", optional = true, features = ["wifi"] }
 embassy-net         = { version = "0.6",  optional = true, features = ["proto-ipv4", "tcp", "dhcpv4", "medium-ethernet"] }
 embassy-executor    = { version = "0.7",  optional = true }
 sequential-storage  = { version = "0.9",  optional = true }
