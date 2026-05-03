@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/provisioner",
+    "crates/provisioner-macro",
+    "examples/basic",
+]
+default-members = [
+    "crates/provisioner",
+    "crates/provisioner-macro",
+]
+resolver = "2"
