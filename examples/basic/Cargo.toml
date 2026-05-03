@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 provisioner = { path = "../../crates/provisioner", features = ["esp32c3"] }
+heapless = "0.9"
