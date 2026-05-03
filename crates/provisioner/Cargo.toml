@@ -8,10 +8,12 @@ esp32c3 = [
     "dep:esp-hal",
     "esp-hal/esp32c3",
     "dep:esp-wifi",
+    "esp-wifi/esp32c3",
     "dep:embassy-net",
     "dep:embassy-executor",
     "dep:sequential-storage",
     "dep:esp-storage",
+    "esp-storage/esp32c3",
 ]
 
 [dependencies]
