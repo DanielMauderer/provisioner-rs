@@ -4,6 +4,7 @@
 use provisioner::Provision;
 
 #[derive(Provision)]
+#[allow(dead_code)]
 struct MyConfig {
     ssid: heapless::String<32>,
     password: heapless::String<64>,
