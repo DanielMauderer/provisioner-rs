@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+
+  esp-cross:
+    name: ESP32-C3 cross-compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # esp-hal 0.23 requires nightly for some unstable features
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: riscv32imc-unknown-none-elf
+          components: rust-src
+      - uses: Swatinem/rust-cache@v2
+      - name: Build provisioner (esp32c3 feature)
+        run: cargo build -p provisioner -F esp32c3 --target riscv32imc-unknown-none-elf
+      - name: Check basic example
+        # cargo check avoids the linker step (no memory.x yet); still validates all types and deps
+        run: cargo check -p basic --target riscv32imc-unknown-none-elf
