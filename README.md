@@ -46,3 +46,9 @@ Platform-specific code (WiFi, flash storage) is isolated behind feature flags. T
 [dependencies]
 provisioner = { version = "0.1", features = ["esp32c3"] }
 ```
+
+## Roadmap
+
+The full feature breakdown, milestone plan (Minimal Requirements → First Full
+Release), and per-component test strategy live in
+[`docs/roadmap/`](docs/roadmap/README.md).
