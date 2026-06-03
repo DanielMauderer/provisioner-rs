@@ -1,3 +1,4 @@
+<!-- STATUS: DONE -->
 # Feature 1 — `#[derive(Provision)]` macro
 
 ## Goal
