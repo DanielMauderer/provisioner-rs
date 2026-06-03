@@ -32,9 +32,10 @@ simulation.
   slots.
 - [M1] Keep the ESP32-C3 cross-build CI job green; add `--features esp32c3`
   `cargo check` coverage where it can run without a linker step.
-- [M2] End-to-end simulation (QEMU/Wokwi) or a documented on-hardware smoke-test
-  checklist as the Milestone 1 acceptance gate; coverage reporting; and an
-  expanded `examples/` set including the customization example.
+- [M1] End-to-end simulation (QEMU/Wokwi) or a documented on-hardware smoke-test
+  checklist as the Milestone 1 acceptance gate.
+- [M2] Coverage reporting and an expanded `examples/` set including the
+  customization example.
 
 ## CI integration
 

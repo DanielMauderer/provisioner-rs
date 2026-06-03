@@ -18,9 +18,12 @@ public contract; implementation is shared with Features 1 and 2.
 - [M1] Document the **CSS ID/class naming scheme** for every generated element so
   users can fully restyle without forking (the canonical table lives in
   [02-html-generation.md](02-html-generation.md) and is mirrored below).
-- [M2] Per-field override attributes (`id`, `class`, `label`, `placeholder`,
-  `input_type`) and a dedicated "kitchen-sink" customization example crate under
-  `examples/`.
+- [M1] Per-field special-input attributes — `#[provision(secret)]` (renders
+  `type="password"`) and `#[provision(input_type = "...")]` — so special cases
+  are explicit macro opt-ins rather than field-name heuristics.
+- [M2] Richer per-field override attributes (`id`, `class`, `label`,
+  `placeholder`, `validate`) and a dedicated "kitchen-sink" customization example
+  crate under `examples/`.
 
 ## Example (target API)
 

@@ -16,11 +16,15 @@ fragments.
 - [M1] Per-field rendering: a `<label>` + `<input>` pair with **auto-generated
   IDs and classes** derived from the field name, following a stable, documented
   scheme (see below).
-- [M1] Input-type inference from the field type:
+- [M1] Input-type inference from the field **type** (never from the field name):
   - `bool` → `<input type="checkbox">`
   - integer types → `<input type="number">`
   - `heapless::String<N>` / `&str` → `<input type="text">`
-  - fields named like `password`/`secret` (or `secret` attr in M2) → `type="password"`
+- [M1] **Special input cases are opt-in via macro attributes, not name
+  heuristics.** `#[provision(secret)]` renders `type="password"`, and
+  `#[provision(input_type = "...")]` overrides the inferred type (see Feature 1).
+  A field called `password` is plain text unless annotated — explicit and
+  predictable.
 - [M1] Render `#[provision(default = ...)]` values into `value="..."` (or
   `checked` for checkboxes).
 - [M1] HTML-escape all static text; emit a submit button; produce the whole page
@@ -60,7 +64,8 @@ The resulting `String` is emitted as a `&'static str` literal.
 ## Test setup
 
 - Host unit tests asserting the generated HTML contains the required IDs,
-  classes, and inferred input types for each field type.
+  classes, and inferred input types for each field type, plus that
+  `#[provision(secret)]` / `input_type = ...` produce the expected `type=...`.
 - Tests asserting injected fragments (css/js/header/footer) appear in the right
   slots.
 - A full-page snapshot test for a representative struct.

@@ -16,15 +16,23 @@ host with full `std` available.
 - [M1] Define the `ProvisionConfig` trait in the main `provisioner` crate and
   re-export it from `lib.rs`. Surface:
   - `const HTML: &'static str`
-  - `fn from_form(body: &str) -> Result<Self, ParseError>`
+  - `fn from_form(body: &[u8]) -> Result<Self, ParseError>`
   - `fn to_bytes(&self, buf: &mut [u8]) -> Result<usize, ParseError>`
   - `fn from_bytes(buf: &[u8]) -> Result<Self, ParseError>`
+
+  **Byte boundary:** `from_form` takes `&[u8]` so it composes directly with
+  `http::Request.body: &[u8]` (Feature 4) and the byte-oriented form decoder
+  (Feature 3) — no caller-side `&str` conversion. The whole request → parse
+  pipeline stays `&[u8]`. UTF-8 validation happens inside `from_form` (and/or
+  per-value in the decoder); non-UTF-8 input maps to a dedicated
+  `ParseError::InvalidEncoding` variant (a new variant to add to `error.rs`).
 - [M1] Parse named-struct fields with `syn` (`DeriveInput` → `Data::Struct` →
   `Fields::Named`). Reject enums, unions, tuple structs, and unit structs with a
   clear, span-accurate compile error (`syn::Error::new_spanned(...).to_compile_error()`).
-- [M1] Generate `from_form`: iterate the decoded key/value pairs (Feature 3),
-  match each field name, call `.parse::<FieldType>()`, mapping parse failures to
-  `ParseError::InvalidValue(field)` and absent keys to
+- [M1] Generate `from_form`: validate the body is UTF-8 (→
+  `ParseError::InvalidEncoding` on failure), iterate the decoded key/value pairs
+  (Feature 3), match each field name, call `.parse::<FieldType>()`, mapping parse
+  failures to `ParseError::InvalidValue(field)` and absent keys to
   `ParseError::MissingField(field)`.
 - [M1] Generate the `HTML` const by delegating to the HTML-builder logic
   (Feature 2). All concatenation happens at macro-expansion time so the emitted
@@ -33,10 +41,15 @@ host with full `std` available.
   (Feature 6).
 - [M1] Parse container-level helper attributes:
   `#[provision(css = ..., js = ..., header = ..., footer = ...)]` (each a
-  `&str` expression, typically `include_str!`), and the field-level
-  `#[provision(default = ...)]`.
-- [M2] Field-level attributes: `label`, `placeholder`, `id`, `class`,
-  `input_type` override, `validate`/range bounds, `secret`.
+  `&str` expression, typically `include_str!`).
+- [M1] Parse field-level attributes that cover the **special input cases**
+  (rather than inferring them from the field name):
+  - `#[provision(default = ...)]` — initial value rendered into the input.
+  - `#[provision(secret)]` — render the input as `type="password"`.
+  - `#[provision(input_type = "...")]` — explicit override of the inferred input
+    type (e.g. `"email"`, `"number"`, `"password"`).
+- [M2] Richer field-level attributes: `label`, `placeholder`, `id`, `class`,
+  and `validate`/range bounds.
 - [M2] Broaden field-type support and provide a `FromStr`-bound generic
   fallback; document the field contract (every field type must implement
   `core::str::FromStr`).
@@ -47,7 +60,7 @@ host with full `std` available.
 // in provisioner (main crate)
 pub trait ProvisionConfig: Sized {
     const HTML: &'static str;
-    fn from_form(body: &str) -> Result<Self, ParseError>;
+    fn from_form(body: &[u8]) -> Result<Self, ParseError>;
     fn to_bytes(&self, buf: &mut [u8]) -> Result<usize, ParseError>;
     fn from_bytes(buf: &[u8]) -> Result<Self, ParseError>;
 }
@@ -59,7 +72,7 @@ pub trait ProvisionConfig: Sized {
 #[provision(css = include_str!("theme.css"), header = include_str!("logo.html"))]
 struct MyConfig {
     ssid: heapless::String<32>,
-    #[provision(default = "")]
+    #[provision(secret, default = "")]
     password: heapless::String<64>,
     use_dhcp: bool,
 }

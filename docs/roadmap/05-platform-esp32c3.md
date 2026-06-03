@@ -22,9 +22,11 @@ Lives behind `feature = "esp32c3"` in `platform::esp32c3`, using `esp-hal`,
 - [M1] TCP accept loop on port 80: read bytes → `http::parse_request` → on `GET`
   serve `T::HTML`, on `POST` decode the body via `form.rs` and call
   `T::from_form`.
+- [M1] Define `ProvisionError` and propagate WiFi/net/storage failures through
+  `run`'s `Result` (see signatures below).
 - [M1] On a valid submit: persist via the `Storage` impl (Feature 6), tear down
-  WiFi / network stack / spawned tasks, and return the populated `T`. Verify no
-  residual background work remains.
+  WiFi / network stack / spawned tasks, and return `Ok(T)`. Verify no residual
+  background work remains.
 - [M1] Boot-decision helper: if storage already holds a valid config, skip the
   portal entirely and return immediately — preserving the zero post-boot cost
   guarantee.
@@ -34,19 +36,35 @@ Lives behind `feature = "esp32c3"` in `platform::esp32c3`, using `esp-hal`,
 
 ## Public surface / signatures
 
+`run` returns a `Result` so WiFi bring-up, network, HTTP, form-parse, and
+storage I/O failures have a defined channel (rather than panicking inside an
+infallible `-> T`). Parse failures of a *submitted* form are not errors — they
+re-render the form (Feature 5 [M2]); `ProvisionError` covers failures that abort
+provisioning.
+
 ```rust
 // platform::esp32c3 (sketch)
 pub struct Provisioner<T>(core::marker::PhantomData<T>);
 
 impl<T: ProvisionConfig> Provisioner<T> {
-    pub async fn run(wifi: WIFI, storage: impl Storage) -> T;
+    pub async fn run(wifi: WIFI, storage: impl Storage) -> Result<T, ProvisionError>;
+}
+
+#[non_exhaustive]
+pub enum ProvisionError {
+    Wifi,       // SoftAP bring-up / radio init failed
+    Net,        // embassy-net stack / DHCP / DNS failure
+    Storage,    // load/store against flash failed
+    // (HTTP/form decode errors during serving are handled internally, not surfaced here)
 }
 ```
 
-Matches the planned user-facing API in `CLAUDE.md`:
+This refines the user-facing sketch in `CLAUDE.md` (which showed a bare `T`) to
+a fallible signature:
 
 ```rust
-let config: MyConfig = Provisioner::<MyConfig>::run(peripherals.WIFI, storage).await;
+let config: MyConfig =
+    Provisioner::<MyConfig>::run(peripherals.WIFI, storage).await?;
 ```
 
 ## Test setup

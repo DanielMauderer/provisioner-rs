@@ -24,8 +24,10 @@ references.
 3. **Milestone 1 is a full end-to-end vertical slice on real ESP32-C3
    hardware** — not just host-testable pieces.
 4. **Field configuration is minimal for Milestone 1**: input type inferred from
-   the field type, plus default values and auto-generated IDs/classes. Rich
-   per-field options come in the First Full Release.
+   the field *type*, plus default values and auto-generated IDs/classes. Special
+   input cases (e.g. password) are opt-in via macro attributes
+   (`#[provision(secret)]` / `input_type = "..."`), never inferred from the field
+   name. Richer per-field options come in the First Full Release.
 
 ## Current state
 
@@ -68,7 +70,7 @@ full docs and a customization example, and a complete automated test suite
 
 | Feature | M1 (Minimal) | M2 (Full Release) |
 |---|---|---|
-| Derive macro | parse + codegen, container attrs, `default` | rich field attrs, validation, generics |
+| Derive macro | parse + codegen, container attrs, `default`/`secret`/`input_type` | rich field attrs, validation, generics |
 | HTML generation | scaffold, auto IDs/classes, type inference | default theme, success page, per-field |
 | Form decoder | decode + percent/`+`, errors | edge cases, limits |
 | HTTP server | parse + responses + captive probes | robustness, chunking, keep-alive |
