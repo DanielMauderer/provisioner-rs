@@ -9,12 +9,8 @@ no-default-features = false
 [advisories]
 version = 2
 # Deny all advisories (security vulnerabilities, unsoundness).
-vulnerability = "deny"
-unmaintained = "warn"
-unsound = "deny"
-yanked = "deny"
-notice = "warn"
-# Ignore advisories for crates that are only used on the host (proc-macro).
+# cargo-deny v2 handles vulnerability/yanked/unmaintained/unsound/notice
+# via its default severity classification — no per-category config needed.
 ignore = []
 
 [licenses]
