@@ -69,10 +69,8 @@ impl<'a> Iterator for FormPairs<'a> {
 /// Literal bytes pass through unchanged; `+` becomes ` `; `%XX` is decoded
 /// to the byte value of the two hex digits.
 ///
-/// **UTF-8 note:** `%XX` escapes can encode arbitrary bytes, including
-/// non-UTF-8 sequences. This function does not perform UTF-8 validation —
-/// the caller (typically the macro-generated `from_form`) is responsible
-/// for that. See [`ParseError::InvalidEncoding`].
+/// UTF-8 validity is checked before returning — if `%XX` decodes to a
+/// non-UTF-8 byte sequence, [`ParseError::InvalidEncoding`] is returned.
 ///
 /// # Errors
 ///
@@ -125,10 +123,8 @@ pub fn decode_into<'out>(raw: &str, out: &'out mut [u8]) -> Result<&'out str, Pa
         }
     }
 
-    // Safety: `%XX` can decode to non-UTF-8 byte sequences. We produce the
-    // raw bytes and mark them as `str`. The macro-generated `from_form` will
-    // validate UTF-8 at the boundary (→ `ParseError::InvalidEncoding`).
-    let decoded = unsafe { core::str::from_utf8_unchecked(&out[..out_pos]) };
+    // `%XX` can decode to non-UTF-8 byte sequences; validate before returning.
+    let decoded = core::str::from_utf8(&out[..out_pos]).map_err(|_| ParseError::InvalidEncoding)?;
     Ok(decoded)
 }
 
@@ -281,13 +277,22 @@ mod tests {
         let result = decode_into("%2fusr%2fbin", &mut buf).unwrap();
         assert_eq!(result, "/usr/bin");
     }
-
     #[test]
-    fn decode_percent_null_byte() {
+    fn decode_percent_null_byte_valid_utf8() {
+        // %00 decodes to 0x00 (U+0000 NULL), which is valid UTF-8.
         let mut buf = [0u8; 32];
         let result = decode_into("a%00b", &mut buf).unwrap();
-        let bytes = result.as_bytes();
-        assert_eq!(bytes, &[b'a', 0x00, b'b']);
+        assert_eq!(result, "a\0b");
+    }
+
+    #[test]
+    fn decode_invalid_utf8_rejected() {
+        // %FF decodes to 0xFF which is never valid UTF-8.
+        let mut buf = [0u8; 32];
+        assert_eq!(
+            decode_into("a%FFb", &mut buf),
+            Err(ParseError::InvalidEncoding)
+        );
     }
 
     #[test]
