@@ -182,6 +182,13 @@ mod tests {
     }
 
     #[test]
+    fn empty_key_with_value() {
+        let mut iter = FormPairs::new("=value");
+        assert_eq!(iter.next(), Some(("", "value")));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
     fn trailing_separator() {
         let mut iter = FormPairs::new("a=1&b=2&");
         assert_eq!(iter.next(), Some(("a", "1")));

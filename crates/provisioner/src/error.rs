@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
     MissingField(&'static str),
     InvalidValue(&'static str),
