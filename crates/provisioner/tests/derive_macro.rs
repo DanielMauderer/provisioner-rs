@@ -83,6 +83,23 @@ fn to_bytes_roundtrip_with_special_chars() {
 }
 
 #[test]
+fn to_bytes_roundtrip_with_plus_sign() {
+    // '+' must survive a to_bytes → from_bytes round-trip
+    let cfg = TestConfig {
+        ssid: heapless::String::try_from("WiFi+Guest").unwrap(),
+        password: heapless::String::try_from("pass+word").unwrap(),
+        use_dhcp: true,
+    };
+
+    let mut buf = [0u8; 256];
+    let n = cfg.to_bytes(&mut buf).unwrap();
+
+    let restored = TestConfig::from_bytes(&buf[..n]).unwrap();
+    assert_eq!(restored.ssid, "WiFi+Guest");
+    assert_eq!(restored.password, "pass+word");
+}
+
+#[test]
 fn html_is_not_empty() {
     let html = TestConfig::HTML;
     assert!(!html.is_empty());

@@ -202,7 +202,19 @@ fn generate_html(
         let default_val = field_attrs
             .default
             .as_ref()
-            .map(|def| format!(" value=\"{}\"", escape_html(&expr_to_string(def))))
+            .map(|def| {
+                let s = expr_to_string(def);
+                if input_type == "checkbox" {
+                    // For checkboxes: "true" → checked attribute, else no default.
+                    if s == "true" {
+                        " checked".to_string()
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    format!(" value=\"{}\"", escape_html(&s))
+                }
+            })
             .unwrap_or_default();
 
         if input_type == "checkbox" {
@@ -240,8 +252,9 @@ fn generate_html(
 
 /// Try to extract a string literal from a `syn::Expr`.
 ///
-/// Works for both raw string literals (`"..."`) and `include_str!(...)`
-/// (which is expanded to a literal before the proc macro runs).
+/// Works for raw string literals (`"..."`).  Compiler built-ins such as
+/// `include_str!(...)` are expanded before the proc macro runs and also
+/// arrive as `Lit::Str`.
 fn extract_string_literal(expr: &Option<Expr>) -> Option<String> {
     match expr {
         Some(Expr::Lit(lit)) => match &lit.lit {
@@ -296,6 +309,11 @@ fn generate_storage(
                         b'=' => {
                             if pos + 3 > buf.len() { return Err(ParseError::InvalidValue(#name_str)); }
                             buf[pos] = b'%'; buf[pos+1] = b'3'; buf[pos+2] = b'D';
+                            pos += 3;
+                        }
+                        b'+' => {
+                            if pos + 3 > buf.len() { return Err(ParseError::InvalidValue(#name_str)); }
+                            buf[pos] = b'%'; buf[pos+1] = b'2'; buf[pos+2] = b'B';
                             pos += 3;
                         }
                         _ => {
