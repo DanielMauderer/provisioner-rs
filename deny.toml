@@ -10,8 +10,12 @@ no-default-features = false
 version = 2
 # Deny all advisories (security vulnerabilities, unsoundness).
 # cargo-deny v2 handles vulnerability/yanked/unmaintained/unsound/notice
-# via its default severity classification — no per-category config needed.
-ignore = []
+# Ignore advisories for crates that are only used on the host (proc-macro).
+ignore = [
+    # RUSTSEC-2024-0436: paste (transitive dep) — unmaintained; fork available
+    # but not a direct dep. Revisit if upstream crates migrate to pastey.
+    "RUSTSEC-2024-0436",
+]
 
 [licenses]
 version = 2
