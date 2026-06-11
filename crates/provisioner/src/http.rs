@@ -186,9 +186,12 @@ pub fn write_response(
     body: &[u8],
 ) -> Result<usize, HttpError> {
     let reason = status_reason(status);
-    // We need room for: "HTTP/1.1 NNN reason\r\nContent-Type: ...\r\nContent-Length: ...\r\n\r\n" + body
+    // Fixed portion of status line: "HTTP/1.1 " (9) + NNN (3) + " " (1) + "\r\n" (2) = 15
+    // Content-Type line: "Content-Type: \r\n" (16) + value
+    // Content-Length line: "Content-Length: \r\n" (18) + digits
+    // Trailing "\r\n" (2) before body
     let needed =
-        17 + reason.len() + 16 + content_type.len() + 18 + digit_count(body.len()) + body.len();
+        15 + reason.len() + 16 + content_type.len() + 18 + digit_count(body.len()) + 2 + body.len();
 
     if out.len() < needed {
         return Err(HttpError::BufferTooSmall);
@@ -225,9 +228,8 @@ pub fn write_response(
 ///
 /// Returns the number of bytes written into `out`.
 pub fn write_redirect(out: &mut [u8], location: &str) -> Result<usize, HttpError> {
-    let needed = 17 + 10 // "HTTP/1.1 302 Found\r\n"
-        + 10 + location.len() + 2 // "Location: {loc}\r\n"
-        + 2; // "\r\n"
+    // "HTTP/1.1 302 Found\r\n" (20) + "Location: " (10) + location + "\r\n\r\n" (4)
+    let needed = 20 + 10 + location.len() + 4;
 
     if out.len() < needed {
         return Err(HttpError::BufferTooSmall);
