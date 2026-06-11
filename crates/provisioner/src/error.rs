@@ -1,5 +1,9 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParseError {
     MissingField(&'static str),
     InvalidValue(&'static str),
+    /// A value in the form body is not valid UTF-8.
+    InvalidEncoding,
+    /// Percent-encoding is malformed (truncated `%`, non-hex digits, etc.).
+    MalformedEncoding,
 }
