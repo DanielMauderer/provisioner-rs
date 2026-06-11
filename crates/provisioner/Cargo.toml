@@ -2,6 +2,7 @@
 name = "provisioner"
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
 
 [features]
 esp32c3 = [
@@ -17,7 +18,7 @@ esp32c3 = [
 ]
 
 [dependencies]
-provisioner-macro = { path = "../provisioner-macro" }
+provisioner-macro = { version = "0.1.0", path = "../provisioner-macro" }
 heapless = "0.9"
 
 esp-hal             = { version = "1.1", optional = true, features = ["unstable"] }
