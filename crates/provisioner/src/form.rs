@@ -1,11 +1,11 @@
-//! URL-encoded form body decoder (`application/x-www-form-urlencoded`).
+//! URL-encoded form body coder/decoder (`application/x-www-form-urlencoded`).
 //!
 //! Operates on `&str` with no allocation — suitable for `no_std` embedded use.
 //!
 //! # Example
 //!
 //! ```ignore
-//! use provisioner::form::{FormPairs, decode_into};
+//! use provisioner::form::{FormPairs, decode_into, encode_into};
 //!
 //! let body = "ssid=MyWiFi&password=hello+world&use_dhcp=true";
 //! let mut buf = [0u8; 64];
@@ -14,6 +14,10 @@
 //!     let value = decode_into(raw_value, &mut buf).unwrap();
 //!     // use key and value ...
 //! }
+//!
+//! let mut out = [0u8; 64];
+//! let encoded = encode_into("hello world!", &mut out).unwrap();
+//! assert_eq!(encoded, "hello+world%21");
 //! ```
 
 use crate::error::ParseError;
@@ -126,6 +130,112 @@ pub fn decode_into<'out>(raw: &str, out: &'out mut [u8]) -> Result<&'out str, Pa
     // `%XX` can decode to non-UTF-8 byte sequences; validate before returning.
     let decoded = core::str::from_utf8(&out[..out_pos]).map_err(|_| ParseError::InvalidEncoding)?;
     Ok(decoded)
+}
+
+/// Encode a plaintext value into URL-encoded form (`+` for space, `%XX` for
+/// reserved bytes), writing into `out`.
+///
+/// The encoded form is compatible with [`decode_into`]: spaces become `+`, the
+/// bytes `&`, `=`, `%`, `+`, and any non-ASCII / control byte are percent-encoded.
+///
+/// Returns the encoded substring of `out`.
+///
+/// # Errors
+///
+/// Returns [`ParseError::MalformedEncoding`] if `out` is too small to hold the
+/// encoded result.
+pub fn encode_into<'out>(plain: &str, out: &'out mut [u8]) -> Result<&'out str, ParseError> {
+    let mut out_pos = 0;
+
+    for &b in plain.as_bytes() {
+        match b {
+            b' ' => {
+                if out_pos >= out.len() {
+                    return Err(ParseError::MalformedEncoding);
+                }
+                out[out_pos] = b'+';
+                out_pos += 1;
+            }
+            b'&' | b'=' | b'%' | b'+' => {
+                if out_pos + 2 >= out.len() {
+                    return Err(ParseError::MalformedEncoding);
+                }
+                let encoded = percent_encode(b);
+                out[out_pos] = encoded[0];
+                out[out_pos + 1] = encoded[1];
+                out[out_pos + 2] = encoded[2];
+                out_pos += 3;
+            }
+            b if b.is_ascii_alphanumeric() || b"~_-./:?#[]@!$'()*,".contains(&b) => {
+                if out_pos >= out.len() {
+                    return Err(ParseError::MalformedEncoding);
+                }
+                out[out_pos] = b;
+                out_pos += 1;
+            }
+            _ => {
+                if out_pos + 2 >= out.len() {
+                    return Err(ParseError::MalformedEncoding);
+                }
+                let encoded = percent_encode(b);
+                out[out_pos] = encoded[0];
+                out[out_pos + 1] = encoded[1];
+                out[out_pos + 2] = encoded[2];
+                out_pos += 3;
+            }
+        }
+    }
+
+    // SAFETY: we only wrote ASCII bytes (`+`, `%`, hex digits, and unreserved).
+    Ok(unsafe { core::str::from_utf8_unchecked(&out[..out_pos]) })
+}
+
+/// Encode a `key=value` pair into `out`, separating with `&` if `out` already
+/// contains a previous pair.
+///
+/// This is a convenience for serializing multiple form fields into a single
+/// buffer, e.g. for flash storage round-trips.
+pub fn encode_pair_into(
+    out: &mut [u8],
+    used: &mut usize,
+    key: &str,
+    value: &str,
+) -> Result<(), ParseError> {
+    if *used > 0 {
+        if *used >= out.len() {
+            return Err(ParseError::MalformedEncoding);
+        }
+        out[*used] = b'&';
+        *used += 1;
+    }
+
+    let key_encoded = encode_into(key, &mut out[*used..])?;
+    *used += key_encoded.len();
+
+    if *used >= out.len() {
+        return Err(ParseError::MalformedEncoding);
+    }
+    out[*used] = b'=';
+    *used += 1;
+
+    let value_encoded = encode_into(value, &mut out[*used..])?;
+    *used += value_encoded.len();
+
+    Ok(())
+}
+
+#[inline]
+fn percent_encode(b: u8) -> [u8; 3] {
+    [b'%', hex_digit(b >> 4), hex_digit(b & 0x0F)]
+}
+
+#[inline]
+fn hex_digit(n: u8) -> u8 {
+    match n {
+        0..=9 => b'0' + n,
+        10..=15 => b'A' + (n - 10),
+        _ => unreachable!(),
+    }
 }
 
 /// Convert a hex character (`0`-`9`, `a`-`f`, `A`-`F`) to its 4-bit value.
@@ -387,5 +497,148 @@ mod tests {
             i += 1;
         }
         assert_eq!(i, 3);
+    }
+
+    // ── encode_into ────────────────────────────────────────────────────────
+
+    #[test]
+    fn encode_plain() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("hello", &mut buf).unwrap(), "hello");
+    }
+
+    #[test]
+    fn encode_space_to_plus() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("hello world", &mut buf).unwrap(), "hello+world");
+    }
+
+    #[test]
+    fn encode_ampersand() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("a&b", &mut buf).unwrap(), "a%26b");
+    }
+
+    #[test]
+    fn encode_equals() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("a=b", &mut buf).unwrap(), "a%3Db");
+    }
+
+    #[test]
+    fn encode_percent() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("100%", &mut buf).unwrap(), "100%25");
+    }
+
+    #[test]
+    fn encode_plus() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("1+1", &mut buf).unwrap(), "1%2B1");
+    }
+
+    #[test]
+    fn encode_special_chars() {
+        let mut buf = [0u8; 64];
+        assert_eq!(encode_into("a=b&c+d", &mut buf).unwrap(), "a%3Db%26c%2Bd");
+    }
+
+    #[test]
+    fn encode_non_ascii() {
+        let mut buf = [0u8; 32];
+        assert_eq!(encode_into("héllo", &mut buf).unwrap(), "h%C3%A9llo");
+    }
+
+    #[test]
+    fn encode_empty_string() {
+        let mut buf = [0u8; 1];
+        assert_eq!(encode_into("", &mut buf).unwrap(), "");
+    }
+
+    #[test]
+    fn encode_buffer_too_small() {
+        let mut buf = [0u8; 2];
+        assert_eq!(
+            encode_into("hello", &mut buf),
+            Err(ParseError::MalformedEncoding)
+        );
+    }
+
+    #[test]
+    fn encode_buffer_too_small_for_percent() {
+        let mut buf = [0u8; 2];
+        assert_eq!(
+            encode_into("a&b", &mut buf),
+            Err(ParseError::MalformedEncoding)
+        );
+    }
+
+    // ── Round-trip: encode → decode ─────────────────────────────────────────
+
+    #[test]
+    fn round_trip_simple() {
+        let plain = "ssid=My WiFi&password=s3cr3t!";
+        let mut enc = [0u8; 128];
+        let encoded = encode_into(plain, &mut enc).unwrap();
+
+        let mut dec = [0u8; 128];
+        let decoded = decode_into(encoded, &mut dec).unwrap();
+        assert_eq!(decoded, plain);
+    }
+
+    #[test]
+    fn round_trip_via_pairs() {
+        let pairs = [("ssid", "My WiFi"), ("password", "p@ss+w0rd=&%")];
+        let mut buf = [0u8; 256];
+        let mut used = 0;
+
+        for (k, v) in &pairs {
+            encode_pair_into(&mut buf, &mut used, k, v).unwrap();
+        }
+
+        let body = core::str::from_utf8(&buf[..used]).unwrap();
+        let mut dec_buf = [0u8; 128];
+        let mut i = 0;
+
+        for (key, raw_value) in FormPairs::new(body) {
+            let value = decode_into(raw_value, &mut dec_buf).unwrap();
+            assert_eq!(key, pairs[i].0);
+            assert_eq!(value, pairs[i].1);
+            i += 1;
+        }
+
+        assert_eq!(i, pairs.len());
+    }
+
+    // ── encode_pair_into ───────────────────────────────────────────────────────
+
+    #[test]
+    fn encode_pair_single() {
+        let mut buf = [0u8; 64];
+        let mut used = 0;
+        encode_pair_into(&mut buf, &mut used, "ssid", "My WiFi").unwrap();
+        assert_eq!(core::str::from_utf8(&buf[..used]).unwrap(), "ssid=My+WiFi");
+    }
+
+    #[test]
+    fn encode_pair_multiple() {
+        let mut buf = [0u8; 128];
+        let mut used = 0;
+        encode_pair_into(&mut buf, &mut used, "ssid", "My WiFi").unwrap();
+        encode_pair_into(&mut buf, &mut used, "password", "s3cr3t!").unwrap();
+        assert_eq!(
+            core::str::from_utf8(&buf[..used]).unwrap(),
+            "ssid=My+WiFi&password=s3cr3t!"
+        );
+    }
+
+    #[test]
+    fn encode_pair_buffer_too_small() {
+        let mut buf = [0u8; 4];
+        let mut used = 0;
+        assert_eq!(
+            encode_pair_into(&mut buf, &mut used, "ssid", "My WiFi"),
+            Err(ParseError::MalformedEncoding)
+        );
     }
 }
