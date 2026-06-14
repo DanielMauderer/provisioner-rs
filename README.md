@@ -47,6 +47,13 @@ Platform-specific code (WiFi, flash storage) is isolated behind feature flags. T
 provisioner = { version = "0.1", features = ["esp32c3"] }
 ```
 
+## Cargo features
+
+| Feature   | Description                                                              |
+|-----------|--------------------------------------------------------------------------|
+| `esp32c3` | Enable the ESP32-C3 platform implementation (WiFi SoftAP + flash storage). |
+| `defmt`   | Derive [`defmt::Format`](https://github.com/knurling-rs/defmt) for `ParseError` for lightweight embedded logging. |
+
 ## Roadmap
 
 The full feature breakdown, milestone plan (Minimal Requirements → First Full
